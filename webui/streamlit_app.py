@@ -29,16 +29,44 @@ if 'authenticated' not in st.session_state:
     st.session_state['username'] = None
 
 if not st.session_state['authenticated']:
-    st.title('🔐 Login')
-    username = st.text_input('Username')
-    password = st.text_input('Password', type='password')
-    if st.button('Login'):
-        if login_sys.authenticate(username, password):
-            st.session_state['authenticated'] = True
-            st.session_state['username'] = username
-            st.rerun()
-        else:
-            st.error('Invalid username or password')
+    st.title('🔐 ClauseEase AI - Login')
+    
+    # Create tabs for Login and Register
+    tab1, tab2 = st.tabs(["Login", "Register"])
+    
+    with tab1:
+        st.subheader("Login to your account")
+        username = st.text_input('Username', key='login_username')
+        password = st.text_input('Password', type='password', key='login_password')
+        if st.button('Login', type='primary'):
+            if login_sys.authenticate(username, password):
+                st.session_state['authenticated'] = True
+                st.session_state['username'] = username
+                st.success(f'Welcome back, {username}!')
+                st.rerun()
+            else:
+                st.error('Invalid username or password')
+    
+    with tab2:
+        st.subheader("Create a new account")
+        new_username = st.text_input('Choose Username', key='register_username', 
+                                      help='Username must be at least 3 characters')
+        new_password = st.text_input('Choose Password', type='password', key='register_password',
+                                      help='Password must be at least 6 characters')
+        confirm_password = st.text_input('Confirm Password', type='password', key='confirm_password')
+        
+        if st.button('Register', type='primary'):
+            # Validate passwords match
+            if new_password != confirm_password:
+                st.error('Passwords do not match!')
+            else:
+                # Attempt registration
+                success, message = login_sys.register(new_username, new_password)
+                if success:
+                    st.success(message)
+                    st.info('Please switch to the Login tab to sign in.')
+                else:
+                    st.error(message)
 else:
     st.title('📄 Clause Ease AI - Contract Language Simplifier')
     st.markdown(f'**Logged in as:** {st.session_state["username"]}')

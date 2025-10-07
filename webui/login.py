@@ -40,3 +40,25 @@ class LoginSystem:
         if username in self.users:
             return self.users[username] == self.hash_password(password)
         return False
+
+    def register(self, username, password):
+        """Register a new user. Returns (success: bool, message: str)"""
+        # Validate username
+        if not username or len(username.strip()) == 0:
+            return False, "Username cannot be empty"
+        
+        if len(username) < 3:
+            return False, "Username must be at least 3 characters"
+        
+        # Check if username already exists
+        if username in self.users:
+            return False, "Username already exists"
+        
+        # Validate password
+        if not password or len(password) < 6:
+            return False, "Password must be at least 6 characters"
+        
+        # Register the user
+        self.users[username] = self.hash_password(password)
+        self.save_users()
+        return True, "Registration successful! You can now login."
