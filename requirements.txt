@@ -1,0 +1,8 @@
+PyMuPDF
+python-docx
+nltk
+spacy
+pyttsx3
+transformers
+torch
+streamlit
