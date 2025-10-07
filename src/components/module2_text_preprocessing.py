@@ -7,7 +7,7 @@ except Exception:
 
 from nltk.tokenize import sent_tokenize
 
-# Initialize NLTK and (optionally) spaCy
+# Initialize NLTK and spaCy
 nltk.download('punkt')
 nltk.download('punkt_tab')
 
