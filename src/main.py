@@ -35,7 +35,7 @@ from components.readability_metrics import (
 
 # Flask app setup
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)
 app.config['SECRET_KEY'] = 'clauseease-secret-key-change-in-production'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
@@ -295,23 +295,56 @@ def hash_password(password):
     """Hash password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
+def _extract_token_from_request():
+    """Pull JWT from headers, cookies, query params, or payload."""
+    auth_header = request.headers.get('Authorization', '').strip()
+    if auth_header:
+        if auth_header.lower().startswith('bearer '):
+            return auth_header[7:].strip()
+        return auth_header
+
+    for header_name in ('X-Access-Token', 'x-access-token'):
+        candidate = request.headers.get(header_name)
+        if candidate:
+            return candidate.strip()
+
+    for cookie_name in ('token', 'Authorization', 'authorization'):
+        candidate = request.cookies.get(cookie_name)
+        if candidate:
+            return candidate.strip().removeprefix('Bearer ').strip()
+
+    candidate = request.args.get('token')
+    if candidate:
+        return candidate.strip()
+
+    candidate = request.form.get('token') if request.form else None
+    if candidate:
+        return candidate.strip()
+
+    json_payload = request.get_json(silent=True) or {}
+    candidate = json_payload.get('token') if isinstance(json_payload, dict) else None
+    if candidate:
+        return str(candidate).strip()
+
+    return None
+
+
 def token_required(f):
     """Decorator to protect routes with JWT token"""
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        
+        if request.method == 'OPTIONS':
+            return '', 204
+        token = _extract_token_from_request()
+
         print(f"\n🔐 TOKEN CHECK")
         print(f"Token present: {bool(token)}")
-        
+
         if not token:
             print("❌ Token missing")
             return jsonify({'message': 'Token is missing'}), 401
-        
+
         try:
-            if token.startswith('Bearer '):
-                token = token[7:]
-            
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             current_user = {
                 'username': data.get('username'),
@@ -322,9 +355,9 @@ def token_required(f):
         except Exception as e:
             print(f"❌ Token invalid: {str(e)}\n")
             return jsonify({'message': 'Token is invalid'}), 401
-        
+
         return f(current_user, *args, **kwargs)
-    
+
     return decorated
 
 # Flask API Routes
@@ -422,20 +455,40 @@ def login():
         }, app.config['SECRET_KEY'], algorithm='HS256')
         
         print(f"[LOGIN] User {username} logged in successfully")  # Debug
-        return jsonify({
+        response = jsonify({
             'message': 'Login successful',
             'token': token,
             'username': username
-        }), 200
+        })
+        max_age_seconds = 24 * 60 * 60
+        response.set_cookie(
+            'token',
+            token,
+            max_age=max_age_seconds,
+            httponly=True,
+            secure=False,
+            samesite='Lax'
+        )
+        response.set_cookie(
+            'Authorization',
+            f'Bearer {token}',
+            max_age=max_age_seconds,
+            httponly=True,
+            secure=False,
+            samesite='Lax'
+        )
+        return response, 200
         
     except Exception as e:
         print(f"[LOGIN ERROR] {str(e)}")  # Debug
         return jsonify({'message': f'Server error: {str(e)}'}), 500
 
-@app.route('/api/process', methods=['POST'])
+@app.route('/api/process', methods=['POST', 'OPTIONS'])
 @token_required
 def process_document(current_user):
     """Process uploaded document through all 5 modules"""
+    if request.method == 'OPTIONS':
+        return '', 204
     print(f"\n{'='*60}")
     print(f"📥 PROCESSING REQUEST RECEIVED")
     user_name = current_user.get('username') if isinstance(current_user, dict) else str(current_user)

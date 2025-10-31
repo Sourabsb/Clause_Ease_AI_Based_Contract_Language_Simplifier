@@ -37,6 +37,12 @@ SESSIONS_FILE = ROOT / 'data' / 'sessions.json'
 UPLOAD_FOLDER = ROOT / 'temp_uploads'
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
+# Add components to path
+import sys
+CURRENT_DIR = Path(__file__).resolve().parent
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
+
 # Import custom modules
 from components.module1_document_ingestion import extract_text
 from components.module2_text_preprocessing import clean_text, preprocess_contract_text
@@ -251,15 +257,15 @@ def load_user(user_id):
 # Routes
 @app.route('/')
 def index():
-    """Home page route"""
+    """Welcome page route"""
     if current_user.is_authenticated:
-        return render_template('landing.html')
+        return redirect(url_for('dashboard'))
     else:
-        return redirect(url_for('auth.login'))
+        return render_template('welcome.html')
 
 @app.route('/dashboard')
 @login_required
-def landing():
+def dashboard():
     """Dashboard landing page"""
     return render_template('landing.html')
 
@@ -271,7 +277,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def login():
     """User login route"""
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
         
     form = LoginForm()
     if form.validate_on_submit():
@@ -281,7 +287,7 @@ def login():
             if user and check_password_hash(user.password_hash, form.password.data):
                 login_user(user)
                 next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('index'))
+                return redirect(next_page) if next_page else redirect(url_for('dashboard'))
             flash('Invalid email or password')
     return render_template('login.html', form=form)
 
@@ -289,7 +295,7 @@ def login():
 def register():
     """User registration route"""
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
         
     form = RegisterForm()
     if form.validate_on_submit():
@@ -316,7 +322,7 @@ def register():
             db.commit()
             login_user(user)
             flash('Registration successful! Welcome to ClauseEase AI.')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
     
     return render_template('register.html', form=form)
 
@@ -329,6 +335,11 @@ def logout():
 
 app.register_blueprint(auth_bp)
 
+from admin_routes import admin_bp, configure_admin
+
+configure_admin(get_db, User, Document)
+app.register_blueprint(admin_bp)
+
 @app.route('/process', methods=['POST'])
 @login_required
 def process_document():
@@ -338,12 +349,12 @@ def process_document():
         file = request.files.get('file')
         if not file or file.filename == '':
             flash('No file selected')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
         filename = secure_filename(file.filename)
         if not filename.lower().endswith(('.pdf', '.docx', '.txt')):
             flash('Invalid file type. Please upload PDF, DOCX, or TXT files only.')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         # Get simplification level
         simplification_level = request.form.get('simplification_level', 'basic')
@@ -358,7 +369,7 @@ def process_document():
         raw_text = extract_text(str(file_path))
         if not raw_text or not raw_text.strip():
             flash('Could not extract text from the file')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
         # Clean and preprocess
         processed_text = clean_text(raw_text)
@@ -478,7 +489,7 @@ def process_document():
     except Exception as e:
         logging.error(f"Processing error: {str(e)}")
         flash('An error occurred during processing')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/document/<int:document_id>')
 @login_required
@@ -576,6 +587,11 @@ def download_report(document_id):
     response.headers['Content-Type'] = 'application/json'
     response.headers['Content-Disposition'] = f'attachment; filename={doc_title}_report.json'
     return response
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Docker"""
+    return jsonify({'status': 'ok', 'message': 'ClauseEase is running'}), 200
 
 if __name__ == '__main__':
     init_db()

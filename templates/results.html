@@ -17,6 +17,9 @@
     </div>
     <div class="nav-actions">
         <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+        {% if current_user.is_authenticated and current_user.username|lower == 'admin' %}
+        <a href="{{ url_for('admin_portal.admin_dashboard') }}" class="nav-link" style="margin-right: 16px;">Admin</a>
+        {% endif %}
         <a href="{{ url_for('auth.logout') }}" class="btn-signout">
             <span>🚪</span> Sign Out
         </a>
@@ -36,7 +39,7 @@
             <a href="{{ url_for('download_report', document_id=document.id) }}" class="btn-download">
                 <span>⬇️</span> Download Report
             </a>
-            <a href="{{ url_for('index') }}" class="btn-upload-another">
+            <a href="{{ url_for('dashboard') }}" class="btn-upload-another">
                 <span class="arrow-icon">←</span> Upload Another
             </a>
         </div>
@@ -109,8 +112,19 @@
             <div class="stat-card">
                 <div class="stat-icon">📈</div>
                 <div class="stat-info">
-                    <div class="stat-value">{{ document.original_readability_score|int if document.original_readability_score else 0 }}</div>
-                    <div class="stat-label">Simplified</div>
+                    <div class="stat-value">
+                        {{ (results.simplified_text.split()|length) if results.simplified_text else 0 }}
+                    </div>
+                    <div class="stat-label">Simplified Words</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-info">
+                    <div class="stat-value">
+                        {{ document.original_readability_score|round(1) if document.original_readability_score else 0 }}
+                    </div>
+                    <div class="stat-label">Flesch Score</div>
                 </div>
             </div>
         </div>

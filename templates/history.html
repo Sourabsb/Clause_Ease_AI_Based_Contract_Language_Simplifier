@@ -17,8 +17,11 @@
             </div>
         </div>
         <div class="nav-actions">
-            <a href="{{ url_for('index') }}" class="nav-link">Home</a>
+            <a href="{{ url_for('dashboard') }}" class="nav-link">Home</a>
             <a href="{{ url_for('history') }}" class="nav-link active">History</a>
+            {% if current_user.is_authenticated and current_user.username|lower == 'admin' %}
+            <a href="{{ url_for('admin_portal.admin_dashboard') }}" class="nav-link">Admin</a>
+            {% endif %}
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
             <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
         </div>
@@ -34,7 +37,7 @@
     <section class="history-list">
         <div class="history-header">
             <div class="history-controls">
-                <a href="{{ url_for('index') }}" class="btn-primary">Upload New</a>
+                <a href="{{ url_for('dashboard') }}" class="btn-primary">Upload New</a>
             </div>
         </div>
         <div class="history-content">
