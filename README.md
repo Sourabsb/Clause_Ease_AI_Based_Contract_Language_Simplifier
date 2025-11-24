@@ -330,7 +330,7 @@ This project is developed for **educational and research purposes**.
 
 ## 👨‍💻 Author
 
-**Sourab Singh**  
+**Sourab Singh Bora**  
 🔗 GitHub: [@Sourabsb](https://github.com/Sourabsb)  
 📦 Repository: [Clause_Ease_AI_Based_Contract_Language_Simplifier](https://github.com/Sourabsb/Clause_Ease_AI_Based_Contract_Language_Simplifier)
 
